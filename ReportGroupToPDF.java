@@ -23,6 +23,13 @@ import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
 
+import org.apache.commons.imaging.ImageFormats;
+import org.apache.commons.imaging.Imaging;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -68,10 +75,20 @@ public class ReportGroupToPDF {
         }
     }
 
-    private static final String[] TRY_FORMATS = {"jpg", "png", "bmp", "gif", "wbmp"};
+    private static final String[] TRY_FORMATS1 = {"png", "jpeg", "jpg", "bmp", "gif", "tiff","webp"};
+    private static final ImageFormats[] TRY_FORMATS2 = {
+            ImageFormats.PNG,
+            ImageFormats.JPEG,
+            ImageFormats.TIFF,
+            ImageFormats.GIF,
+            ImageFormats.BMP,
+            ImageFormats.PNM,
+            ImageFormats.WEBP
+    };
+
 
     public static byte[] tryDecodeImage(byte[] imageBytes) {
-        for (String format : TRY_FORMATS) {
+        for (String format : TRY_FORMATS1) {
             try {
                 ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
                 BufferedImage img = ImageIO.read(bais);
@@ -85,13 +102,63 @@ public class ReportGroupToPDF {
                 // ігноруємо й пробуємо наступний формат
             }
         }
-
         System.out.println("Image format incorrect.");
         return null;
     }
 
+
+    public static byte[] fixImageWithCommonsImaging(byte[] imageBytes) {
+            for (ImageFormats format : TRY_FORMATS2) {
+                try {
+                    BufferedImage image = Imaging.getBufferedImage(imageBytes);
+                    if (image != null) {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        Imaging.writeImage(image, baos, format);
+                        return baos.toByteArray();
+                    }
+                }
+                catch (IOException e) {
+                    // ігноруємо й пробуємо наступний формат
+                }
+
+            }
+            System.out.println("Image format incorrect.");
+            return null;
+    }
+
+
+
+    public static byte[] fixImageWithTwelveMonkeys(byte[] imageBytes) {
+            for (String format : TRY_FORMATS1) {
+                try {
+                    ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
+                    BufferedImage image = ImageIO.read(bais);
+                    if (image != null) {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        ImageIO.write(image, format, baos);
+                        return baos.toByteArray();
+                    }
+                }
+                catch (IOException e) {
+                    // ігноруємо й пробуємо наступний формат
+                }
+            }
+
+            System.out.println("Image format incorrect.");
+            return null;
+    }
+
+
+
+
+
+
+
+
+
+
     private static Connection connect() {
-        String url = "jdbc:sqlite:D:\\Aleks\\OpenNumismat\\my_coins.db";
+        String url = "jdbc:sqlite:F:\\temp\\OpenNumismat\\my_coins2.db";
         Connection conn = null;
         try {
             conn = DriverManager.getConnection(url);
@@ -150,7 +217,7 @@ public class ReportGroupToPDF {
 
             // Створення таблиці з 4 колонками
             //  Table table = new Table(new PercentColumnWidth(new float[]{2, 3, 3, 4}));
- // Залишає таблицю цілісною при переході на нову сторінку
+            // Залишає таблицю цілісною при переході на нову сторінку
 
 
             // Заголовки таблиці
@@ -164,7 +231,7 @@ public class ReportGroupToPDF {
                          "from coins c " +
                          "left join photos p1 on c.obverseimg=p1.id " +
                          "left join photos p2 on c.reverseimg=p2.id " +
-                         "where  c.status = 'owned' and c.title='Рік Змії'"); //c.id <=100 and
+                         "where  c.status = 'owned' and (c.id=986 or c.id=939) "); //c.id <=100 and   and c.title='Рік Змії'
                  ResultSet rs = ps.executeQuery()) {
 
 
@@ -215,10 +282,10 @@ public class ReportGroupToPDF {
 
 
                     byte[] imageBytesObvD = coin.obv;
-                    byte[] imageBytesObv = tryDecodeImage(imageBytesObvD);
+                    byte[] imageBytesObv = fixImageWithCommonsImaging(imageBytesObvD);
 
                     byte[] imageBytesRevD = coin.rev;
-                    byte[] imageBytesRev = tryDecodeImage(imageBytesRevD);
+                    byte[] imageBytesRev = fixImageWithCommonsImaging(imageBytesRevD);
 
                     Table imageTable = new Table(2);
                     imageTable.setWidth(UnitValue.createPercentValue(100));
@@ -287,5 +354,4 @@ public class ReportGroupToPDF {
     }
 
 }
-
 
